@@ -360,5 +360,35 @@ namespace esphome
         {
         }
 
+        void PanaACFanOnlySwitch::dump_config()
+        {
+            ESP_LOGCONFIG(TAG, "PanaACFanOnlySwitch:");
+            LOG_SWITCH("  Fan Only: ", "switch", this);
+        }
+
+        void PanaACFanOnlySwitch::write_state(bool state)
+        {
+            if (state)
+            {
+                this->climate_->ac_state.mode = climate::CLIMATE_MODE_FAN_ONLY;
+            }
+            else if (this->climate_->ac_state.mode == climate::CLIMATE_MODE_FAN_ONLY)
+            {
+                this->climate_->ac_state.mode = this->climate_->get_restore_mode_from_fan_only();
+            }
+
+            this->climate_->update_state();
+            this->publish_state(this->climate_->ac_state.mode == climate::CLIMATE_MODE_FAN_ONLY);
+        }
+
+        void PanaACFanOnlySwitch::sync_state()
+        {
+            this->publish_state(this->climate_->ac_state.mode == climate::CLIMATE_MODE_FAN_ONLY);
+        }
+
+        void PanaACFanOnlySwitch::setup()
+        {
+        }
+
     } // namespace panaac
 } // namespace esphome

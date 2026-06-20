@@ -51,18 +51,22 @@ namespace esphome
             void set_fanlevel(PanaACFanLevel *fanlevel) { this->fanlevel_ = fanlevel; }
             void set_swingv(PanaACSwingV *swingv) { this->swingv_ = swingv; }
             void set_swingh(PanaACSwingH *swingh) { this->swingh_ = swingh; }
+            void set_fan_only_switch(PanaACFanOnlySwitch *fan_only_switch) { this->fan_only_switch_ = fan_only_switch; }
 
             void update_state();
             void transmit_data();
 
             ClimateState ac_state;
             bool swing_horizontal_;
+            climate::ClimateMode get_restore_mode_from_fan_only() const;
 
         protected:
             void setup() override;
             void transmit_state() override;
             bool on_receive(remote_base::RemoteReceiveData data) override;
             climate::ClimateTraits traits() override;
+            void sync_helper_entities_();
+            void remember_last_non_fan_only_mode_();
 
             bool decode_data(remote_base::RemoteReceiveData data, std::vector<uint8_t>& state_bytes);
             bool decode_state(std::vector<uint8_t> state_bytes, ClimateState& state);
@@ -72,10 +76,12 @@ namespace esphome
             bool fan_5level_;
             bool ir_control_;
             bool supports_fan_only_;
+            climate::ClimateMode last_non_fan_only_mode_{climate::CLIMATE_MODE_AUTO};
 
             PanaACFanLevel *fanlevel_{nullptr};
             PanaACSwingV *swingv_{nullptr};
             PanaACSwingH *swingh_{nullptr};
+            PanaACFanOnlySwitch *fan_only_switch_{nullptr};
         };
 
 

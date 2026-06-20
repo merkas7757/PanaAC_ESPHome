@@ -85,8 +85,42 @@ namespace esphome
                 this->swing_mode = climate::CLIMATE_SWING_VERTICAL;
             }
 
+            this->remember_last_non_fan_only_mode_();
+            this->sync_helper_entities_();
             transmit_state();
 
+        }
+
+        climate::ClimateMode PanaACClimate::get_restore_mode_from_fan_only() const
+        {
+            if (this->last_non_fan_only_mode_ == climate::CLIMATE_MODE_HEAT && !this->supports_heat_)
+            {
+                return climate::CLIMATE_MODE_AUTO;
+            }
+
+            return this->last_non_fan_only_mode_;
+        }
+
+        void PanaACClimate::remember_last_non_fan_only_mode_()
+        {
+            if (ac_state.mode != climate::CLIMATE_MODE_FAN_ONLY && ac_state.mode != climate::CLIMATE_MODE_OFF)
+            {
+                this->last_non_fan_only_mode_ = ac_state.mode;
+            }
+        }
+
+        void PanaACClimate::sync_helper_entities_()
+        {
+            this->fanlevel_->set_fanlevel(ac_state.fan_level);
+            this->swingv_->set_swingvpos(ac_state.swing_v_pos);
+            if (this->swing_horizontal_)
+            {
+                this->swingh_->set_swinghpos(ac_state.swing_h_pos);
+            }
+            if (this->fan_only_switch_ != nullptr)
+            {
+                this->fan_only_switch_->sync_state();
+            }
         }
 
         climate::ClimateTraits PanaACClimate::traits() {
@@ -410,14 +444,9 @@ namespace esphome
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
+            this->remember_last_non_fan_only_mode_();
             this->publish_state();
-
-            this->fanlevel_->set_fanlevel(ac_state.fan_level);
-            this->swingv_->set_swingvpos(ac_state.swing_v_pos);
-            if (this->swing_horizontal_)
-            {
-                this->swingh_->set_swinghpos(ac_state.swing_h_pos);
-            }
+            this->sync_helper_entities_();
             
             return true;
         }
@@ -708,14 +737,9 @@ namespace esphome
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
+            this->remember_last_non_fan_only_mode_();
             this->publish_state();
-
-            this->fanlevel_->set_fanlevel(ac_state.fan_level);
-            this->swingv_->set_swingvpos(ac_state.swing_v_pos);
-            if (this->swing_horizontal_)
-            {
-                this->swingh_->set_swinghpos(ac_state.swing_h_pos);
-            }
+            this->sync_helper_entities_();
         }
 
         void PanaACClimate::update_state()
@@ -725,16 +749,10 @@ namespace esphome
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
+            this->remember_last_non_fan_only_mode_();
             transmit_data();
 
-            // update state of additional selects
-            this->fanlevel_->set_fanlevel(ac_state.fan_level);
-            this->swingv_->set_swingvpos(ac_state.swing_v_pos);
-            if (this->swing_horizontal_)
-            {
-                this->swingh_->set_swinghpos(ac_state.swing_h_pos);
-            }
-
+            this->sync_helper_entities_();
             this->publish_state();
 
         }

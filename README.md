@@ -96,6 +96,7 @@ You have 2 options to install ESPHome module to you AC.
                 supports_heat: true
                 supports_quiet: true
                 fan_5level: true
+                fan_only_switch: true
                 swing_horizontal: false
                 temp_step: 0.5
                 ir_control: false
@@ -125,10 +126,13 @@ You have 2 options to install ESPHome module to you AC.
                 supports_heat: true
                 supports_quiet: True
                 fan_5level: True
+                fan_only_switch: True
                 swing_horizontal: True
                 temp_step: 0.5
                 ir_control: True
         ```
+
+    - `fan_only_switch` is optional and creates a companion switch entity for users who expose this climate through HomeKit. HomeKit does not provide a native FAN_ONLY climate mode, but it can surface a switch that toggles the AC into and out of FAN_ONLY.
 
     - **NOTE:**
         - Panasonic AC IR protocol includes 2 IR frames

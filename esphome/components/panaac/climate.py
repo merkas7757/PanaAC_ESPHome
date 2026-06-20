@@ -14,16 +14,17 @@
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import climate_ir, select
+from esphome.components import climate_ir, select, switch
 from esphome.const import CONF_ID, CONF_NAME, CONF_DISABLED_BY_DEFAULT
 
-AUTO_LOAD = ['climate_ir','select']
+AUTO_LOAD = ['climate_ir', 'select', 'switch']
 
 panaac_ns = cg.esphome_ns.namespace('panaac')
 PanaACClimate = panaac_ns.class_('PanaACClimate', climate_ir.ClimateIR)
 PanaACFanLevel = panaac_ns.class_('PanaACFanLevel', select.Select, cg.Component)
 PanaACSwingV = panaac_ns.class_('PanaACSwingV', select.Select, cg.Component)
 PanaACSwingH = panaac_ns.class_('PanaACSwingH', select.Select, cg.Component)
+PanaACFanOnlySwitch = panaac_ns.class_('PanaACFanOnlySwitch', switch.Switch, cg.Component)
 
 CONF_SUPPORT_FAN_ONLY = "supports_fan_only"
 CONF_SWING_HORIZONTAL = "swing_horizontal"
@@ -31,22 +32,26 @@ CONF_TEMP_STEP = "temp_step"
 CONF_SUPPORT_QUIET = "supports_quiet"
 CONF_FAN_5LEVEL = "fan_5level"
 CONF_IR_CONTROL = "ir_control"
+CONF_FAN_ONLY_SWITCH = "fan_only_switch"
 
 CONF_SWINGV_ID = "swingv_id"
 CONF_SWINGH_ID = "swingh_id"
 CONF_FANLEVEL_ID = "fanlevel_id"
+CONF_FAN_ONLY_SWITCH_ID = "fan_only_switch_id"
 
 CONFIG_SCHEMA = climate_ir.climate_ir_with_receiver_schema(PanaACClimate).extend({
     cv.GenerateID(): cv.declare_id(PanaACClimate),
     cv.GenerateID(CONF_SWINGV_ID): cv.declare_id(PanaACSwingV),
     cv.GenerateID(CONF_SWINGH_ID): cv.declare_id(PanaACSwingH),
     cv.GenerateID(CONF_FANLEVEL_ID): cv.declare_id(PanaACFanLevel),
+    cv.GenerateID(CONF_FAN_ONLY_SWITCH_ID): cv.declare_id(PanaACFanOnlySwitch),
     cv.Optional(CONF_SWING_HORIZONTAL, default=False): cv.boolean,
     cv.Optional(CONF_TEMP_STEP, default=1.0): cv.float_,
     cv.Optional(CONF_SUPPORT_QUIET, default=False): cv.boolean,
     cv.Optional(CONF_SUPPORT_FAN_ONLY, default=False): cv.boolean,
     cv.Optional(CONF_FAN_5LEVEL, default=False): cv.boolean,
     cv.Optional(CONF_IR_CONTROL, default=False): cv.boolean,
+    cv.Optional(CONF_FAN_ONLY_SWITCH, default=False): cv.boolean,
 })
 
 async def to_code(config):
@@ -90,3 +95,15 @@ async def to_code(config):
         await cg.register_component(swingh, swingh_default_config)
         cg.add(swingh.set_parent_climate(var))
         cg.add(var.set_swingh(swingh))
+
+    if config[CONF_SUPPORT_FAN_ONLY] and config[CONF_FAN_ONLY_SWITCH]:
+        fan_only_switch_default_config = {
+            CONF_ID: config[CONF_FAN_ONLY_SWITCH_ID],
+            CONF_NAME: "- Fan Only",
+            CONF_DISABLED_BY_DEFAULT: False,
+        }
+        fan_only_switch = cg.new_Pvariable(config[CONF_FAN_ONLY_SWITCH_ID])
+        await switch.register_switch(fan_only_switch, fan_only_switch_default_config)
+        await cg.register_component(fan_only_switch, fan_only_switch_default_config)
+        cg.add(fan_only_switch.set_parent_climate(var))
+        cg.add(var.set_fan_only_switch(fan_only_switch))

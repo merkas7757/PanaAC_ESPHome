@@ -62,5 +62,18 @@ namespace esphome
             PanaACClimate *climate_{nullptr};
         };
 
+        class PanaACFanOnlySwitch : public switch_::Switch, public Component
+        {
+        public:
+            void setup() override;
+            void dump_config() override;
+            void write_state(bool state) override;
+            void set_parent_climate(PanaACClimate *climate) { this->climate_ = climate; }
+            void sync_state();
+
+        protected:
+            PanaACClimate *climate_{nullptr};
+        };
+
     } // namespace panaac
 } // namespace esphome

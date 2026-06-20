@@ -19,6 +19,7 @@
 #include "esphome/components/climate_ir/climate_ir.h"
 #include "esphome/components/select/select.h"
 #include "esphome/components/remote_base/remote_base.h"
+#include "esphome/components/switch/switch.h"
 #include "esphome/core/log.h"
 #include <cstdlib>
 #include <cinttypes>
@@ -128,6 +129,7 @@ namespace esphome
         static const char *STR_SWINGH_RIGHTMAX = "Right Max";
 
         class PanaACClimate;
+        class PanaACFanOnlySwitch;
 
     } // namespace panaac
 } // namespace esphome
