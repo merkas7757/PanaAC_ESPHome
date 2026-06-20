@@ -91,6 +91,7 @@ You have 2 options to install ESPHome module to you AC.
         climate:
             - platform: panaac
                 name: "Remote Controller"
+                device_id: hvac
                 receiver_id: ir_receiver
                 supports_fan_only: true
                 supports_heat: true
@@ -100,6 +101,8 @@ You have 2 options to install ESPHome module to you AC.
                 temp_step: 0.5
                 ir_control: false
         ```
+
+    - If you use ESPHome sub-devices, set `device_id:` on the climate entity. The companion selects created by this component inherit the same `device_id` and stay grouped with the climate in ESPHome and Home Assistant.
 
     - If you're installing the ESPHome device as a separated device and communicate with AC with real IR leds (non-invasive way), use different GPIO pins for `remote_receiver` and `remote_transmitter`. **Additionaly parameter `ir_control` needs to be True**.
 

@@ -15,7 +15,7 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import climate_ir, select
-from esphome.const import CONF_ID, CONF_NAME, CONF_DISABLED_BY_DEFAULT
+from esphome.const import CONF_DEVICE_ID, CONF_DISABLED_BY_DEFAULT, CONF_ID, CONF_NAME
 
 AUTO_LOAD = ['climate_ir','select']
 
@@ -49,6 +49,17 @@ CONFIG_SCHEMA = climate_ir.climate_ir_with_receiver_schema(PanaACClimate).extend
     cv.Optional(CONF_IR_CONTROL, default=False): cv.boolean,
 })
 
+
+def build_entity_config(config, entity_id, name):
+    entity_config = {
+        CONF_ID: entity_id,
+        CONF_NAME: name,
+        CONF_DISABLED_BY_DEFAULT: False,
+    }
+    if CONF_DEVICE_ID in config:
+        entity_config[CONF_DEVICE_ID] = config[CONF_DEVICE_ID]
+    return entity_config
+
 async def to_code(config):
     var = await climate_ir.new_climate_ir(config)
     # var = cg.new_Pvariable(config[CONF_ID])
@@ -61,9 +72,7 @@ async def to_code(config):
     cg.add(var.set_ir_control(config[CONF_IR_CONTROL]))
 
     # Fan level select
-    fanlevel_default_config = { CONF_ID: config[CONF_FANLEVEL_ID],
-                                CONF_NAME: "- Fan Level",
-                                CONF_DISABLED_BY_DEFAULT: False}
+    fanlevel_default_config = build_entity_config(config, config[CONF_FANLEVEL_ID], "- Fan Level")
     fanlevel = cg.new_Pvariable(config[CONF_FANLEVEL_ID])
     await select.register_select(fanlevel, fanlevel_default_config, options=[])
     await cg.register_component(fanlevel, fanlevel_default_config)
@@ -71,9 +80,7 @@ async def to_code(config):
     cg.add(var.set_fanlevel(fanlevel))
     
     # SwingV select
-    swingv_default_config = {   CONF_ID: config[CONF_SWINGV_ID],
-                                CONF_NAME: "- Swing Vertical",
-                                CONF_DISABLED_BY_DEFAULT: False}
+    swingv_default_config = build_entity_config(config, config[CONF_SWINGV_ID], "- Swing Vertical")
     swingv = cg.new_Pvariable(config[CONF_SWINGV_ID])
     await select.register_select(swingv, swingv_default_config, options=[])
     await cg.register_component(swingv, swingv_default_config)
@@ -82,9 +89,7 @@ async def to_code(config):
 
     # SwingH select
     if config[CONF_SWING_HORIZONTAL]:
-        swingh_default_config = {   CONF_ID: config[CONF_SWINGH_ID],
-                                    CONF_NAME: "- Swing Horizontal",
-                                    CONF_DISABLED_BY_DEFAULT: False}
+        swingh_default_config = build_entity_config(config, config[CONF_SWINGH_ID], "- Swing Horizontal")
         swingh = cg.new_Pvariable(config[CONF_SWINGH_ID])
         await select.register_select(swingh, swingh_default_config, options=[])
         await cg.register_component(swingh, swingh_default_config)
