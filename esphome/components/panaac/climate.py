@@ -24,28 +24,35 @@ PanaACClimate = panaac_ns.class_('PanaACClimate', climate_ir.ClimateIR)
 PanaACFanLevel = panaac_ns.class_('PanaACFanLevel', select.Select, cg.Component)
 PanaACSwingV = panaac_ns.class_('PanaACSwingV', select.Select, cg.Component)
 PanaACSwingH = panaac_ns.class_('PanaACSwingH', select.Select, cg.Component)
+PanaACPreset = panaac_ns.class_('PanaACPreset', select.Select, cg.Component)
 
 CONF_SUPPORT_FAN_ONLY = "supports_fan_only"
 CONF_SWING_HORIZONTAL = "swing_horizontal"
 CONF_TEMP_STEP = "temp_step"
 CONF_SUPPORT_QUIET = "supports_quiet"
 CONF_FAN_5LEVEL = "fan_5level"
+CONF_SUPPORTS_POWERFUL = "supports_powerful"
+CONF_SUPPORTS_ECO = "supports_eco"
 CONF_IR_CONTROL = "ir_control"
 
 CONF_SWINGV_ID = "swingv_id"
 CONF_SWINGH_ID = "swingh_id"
 CONF_FANLEVEL_ID = "fanlevel_id"
+CONF_PRESET_ID = "preset_id"
 
 CONFIG_SCHEMA = climate_ir.climate_ir_with_receiver_schema(PanaACClimate).extend({
     cv.GenerateID(): cv.declare_id(PanaACClimate),
     cv.GenerateID(CONF_SWINGV_ID): cv.declare_id(PanaACSwingV),
     cv.GenerateID(CONF_SWINGH_ID): cv.declare_id(PanaACSwingH),
     cv.GenerateID(CONF_FANLEVEL_ID): cv.declare_id(PanaACFanLevel),
+    cv.GenerateID(CONF_PRESET_ID): cv.declare_id(PanaACPreset),
     cv.Optional(CONF_SWING_HORIZONTAL, default=False): cv.boolean,
     cv.Optional(CONF_TEMP_STEP, default=1.0): cv.float_,
     cv.Optional(CONF_SUPPORT_QUIET, default=False): cv.boolean,
     cv.Optional(CONF_SUPPORT_FAN_ONLY, default=False): cv.boolean,
     cv.Optional(CONF_FAN_5LEVEL, default=False): cv.boolean,
+    cv.Optional(CONF_SUPPORTS_POWERFUL, default=False): cv.boolean,
+    cv.Optional(CONF_SUPPORTS_ECO, default=False): cv.boolean,
     cv.Optional(CONF_IR_CONTROL, default=False): cv.boolean,
 })
 
@@ -58,6 +65,8 @@ async def to_code(config):
     cg.add(var.set_supports_fan_only(config[CONF_SUPPORT_FAN_ONLY]))
     cg.add(var.set_supports_quiet(config[CONF_SUPPORT_QUIET]))
     cg.add(var.set_fan_5level(config[CONF_FAN_5LEVEL]))
+    cg.add(var.set_supports_powerful(config[CONF_SUPPORTS_POWERFUL]))
+    cg.add(var.set_supports_eco(config[CONF_SUPPORTS_ECO]))
     cg.add(var.set_ir_control(config[CONF_IR_CONTROL]))
 
     # Fan level select
@@ -90,3 +99,15 @@ async def to_code(config):
         await cg.register_component(swingh, swingh_default_config)
         cg.add(swingh.set_parent_climate(var))
         cg.add(var.set_swingh(swingh))
+
+    if config[CONF_SUPPORTS_POWERFUL] or config[CONF_SUPPORTS_ECO]:
+        preset_default_config = {
+            CONF_ID: config[CONF_PRESET_ID],
+            CONF_NAME: "- Preset",
+            CONF_DISABLED_BY_DEFAULT: False,
+        }
+        preset = cg.new_Pvariable(config[CONF_PRESET_ID])
+        await select.register_select(preset, preset_default_config, options=[])
+        await cg.register_component(preset, preset_default_config)
+        cg.add(preset.set_parent_climate(var))
+        cg.add(var.set_preset_select(preset))

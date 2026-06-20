@@ -9,6 +9,7 @@ This is a custom ESPHome external component for controlling Panasonic air condit
 It **inherits from ESPHome's `ClimateIR`** and adds support for:
 - **IR Receiver** to detect and decode Panasonic AC remote commands (216 bit frame)
 - **Temperature step** (0.5 or 1.0 degree)
+- **Preset control** for **POWERFUL** and **ECO** on supported remotes
 - **Fan Level Control** (1–5, plus quiet)
     - Default 3 levels without quiet, can configure 5 levels and quiet separately
 - **Swing Control**:
@@ -25,6 +26,7 @@ It **inherits from ESPHome's `ClimateIR`** and adds support for:
 - ✅ IR receiver support to sync state from physical remote
 - ✅ `select` components for:
   - Fan level 
+  - Preset
   - Swing vertical
   - Swing horizontal
 - ✅ Auto state updates when IR signal is received
@@ -95,6 +97,8 @@ You have 2 options to install ESPHome module to you AC.
                 supports_fan_only: true
                 supports_heat: true
                 supports_quiet: true
+                supports_powerful: true
+                supports_eco: true
                 fan_5level: true
                 swing_horizontal: false
                 temp_step: 0.5
@@ -124,11 +128,15 @@ You have 2 options to install ESPHome module to you AC.
                 supports_fan_only: true
                 supports_heat: true
                 supports_quiet: True
+                supports_powerful: True
+                supports_eco: True
                 fan_5level: True
                 swing_horizontal: True
                 temp_step: 0.5
                 ir_control: True
         ```
+
+    - `supports_powerful` and `supports_eco` are optional. When enabled, the component exposes a companion preset select and maps it to ESPHome climate presets.
 
     - **NOTE:**
         - Panasonic AC IR protocol includes 2 IR frames

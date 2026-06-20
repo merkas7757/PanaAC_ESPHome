@@ -38,12 +38,16 @@ namespace esphome
                                    climate::CLIMATE_SWING_BOTH,
                                    climate::CLIMATE_SWING_VERTICAL,
                                    climate::CLIMATE_SWING_HORIZONTAL},
-                                  {})
+                                  {climate::CLIMATE_PRESET_NONE,
+                                   climate::CLIMATE_PRESET_BOOST,
+                                   climate::CLIMATE_PRESET_ECO})
                                   {}
 
             void set_swing_horizontal(bool swing_horizontal) { this->swing_horizontal_ = swing_horizontal; }
             void set_temp_step(float temp_step) { this->temp_step_ = temp_step; }
             void set_supports_quiet(bool supports_quiet) { this->supports_quiet_ = supports_quiet; }
+            void set_supports_powerful(bool supports_powerful) { this->supports_powerful_ = supports_powerful; }
+            void set_supports_eco(bool supports_eco) { this->supports_eco_ = supports_eco; }
             void set_supports_fan_only(bool supports_fan_only) { this->supports_fan_only_ = supports_fan_only; }
             void set_fan_5level(bool fan_5level) { this->fan_5level_ = fan_5level; }
             void set_ir_control(bool ir_control) { this->ir_control_ = ir_control; }
@@ -51,6 +55,7 @@ namespace esphome
             void set_fanlevel(PanaACFanLevel *fanlevel) { this->fanlevel_ = fanlevel; }
             void set_swingv(PanaACSwingV *swingv) { this->swingv_ = swingv; }
             void set_swingh(PanaACSwingH *swingh) { this->swingh_ = swingh; }
+            void set_preset_select(PanaACPreset *preset) { this->preset_ = preset; }
 
             void update_state();
             void transmit_data();
@@ -63,6 +68,8 @@ namespace esphome
             void transmit_state() override;
             bool on_receive(remote_base::RemoteReceiveData data) override;
             climate::ClimateTraits traits() override;
+            void normalize_preset_(climate::ClimateFanMode previous_fan_mode);
+            void sync_preset_select_();
 
             bool decode_data(remote_base::RemoteReceiveData data, std::vector<uint8_t>& state_bytes);
             bool decode_state(std::vector<uint8_t> state_bytes, ClimateState& state);
@@ -72,10 +79,14 @@ namespace esphome
             bool fan_5level_;
             bool ir_control_;
             bool supports_fan_only_;
+            bool supports_powerful_{false};
+            bool supports_eco_{false};
+            climate::ClimateFanMode last_fan_mode_{climate::CLIMATE_FAN_AUTO};
 
             PanaACFanLevel *fanlevel_{nullptr};
             PanaACSwingV *swingv_{nullptr};
             PanaACSwingH *swingh_{nullptr};
+            PanaACPreset *preset_{nullptr};
         };
 
 

@@ -360,5 +360,51 @@ namespace esphome
         {
         }
 
+        void PanaACPreset::dump_config()
+        {
+            ESP_LOGCONFIG(TAG, "PanaACPreset:");
+            LOG_SELECT("  Preset: ", "preset", this);
+        }
+
+        void PanaACPreset::control(const std::string &value)
+        {
+            ESP_LOGI(TAG, "Preset selected: %s", value.c_str());
+
+            if (value == STR_PRESET_POWERFUL)
+            {
+                this->climate_->ac_state.preset = climate::CLIMATE_PRESET_BOOST;
+            }
+            else if (value == STR_PRESET_ECO)
+            {
+                this->climate_->ac_state.preset = climate::CLIMATE_PRESET_ECO;
+            }
+            else
+            {
+                this->climate_->ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            }
+
+            this->climate_->update_state();
+        }
+
+        void PanaACPreset::set_preset(climate::ClimatePreset preset)
+        {
+            if (preset == climate::CLIMATE_PRESET_BOOST)
+            {
+                this->publish_state(STR_PRESET_POWERFUL);
+            }
+            else if (preset == climate::CLIMATE_PRESET_ECO)
+            {
+                this->publish_state(STR_PRESET_ECO);
+            }
+            else
+            {
+                this->publish_state(STR_PRESET_NONE);
+            }
+        }
+
+        void PanaACPreset::setup()
+        {
+        }
+
     } // namespace panaac
 } // namespace esphome

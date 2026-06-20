@@ -35,6 +35,7 @@ namespace esphome
             ac_state.swing_h_pos = PANAAC_SWINGH_AUTO;
             ac_state.last_swing_v_pos = PANAAC_SWINGV_MIDDLE;
             ac_state.last_swing_h_pos = PANAAC_SWINGH_MIDDLE;
+            ac_state.preset = climate::CLIMATE_PRESET_NONE;
 
             // fan level options
             FixedVector<const char *> fanlevel_options;
@@ -67,6 +68,22 @@ namespace esphome
             // swing v options
             this->swingv_->traits.set_options({STR_SWINGV_AUTO, STR_SWINGV_HIGHEST, STR_SWINGV_HIGH, STR_SWINGV_MIDDLE, STR_SWINGV_LOW, STR_SWINGV_LOWEST});
 
+            if (this->preset_ != nullptr)
+            {
+                FixedVector<const char *> preset_options;
+                preset_options.init(3);
+                preset_options.push_back(STR_PRESET_NONE);
+                if (this->supports_powerful_)
+                {
+                    preset_options.push_back(STR_PRESET_POWERFUL);
+                }
+                if (this->supports_eco_)
+                {
+                    preset_options.push_back(STR_PRESET_ECO);
+                }
+                this->preset_->traits.set_options(preset_options);
+            }
+
             if (this->swing_horizontal_)
             {
                 this->swingh_->traits.set_options({STR_SWINGH_AUTO, STR_SWINGH_LEFTMAX, STR_SWINGH_LEFT, STR_SWINGH_MIDDLE, STR_SWINGH_RIGHT, STR_SWINGH_RIGHTMAX});
@@ -87,6 +104,39 @@ namespace esphome
 
             transmit_state();
 
+        }
+
+        void PanaACClimate::normalize_preset_(climate::ClimateFanMode previous_fan_mode)
+        {
+            if (!this->supports_powerful_ && ac_state.preset == climate::CLIMATE_PRESET_BOOST)
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            }
+
+            if (!this->supports_eco_ && ac_state.preset == climate::CLIMATE_PRESET_ECO)
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            }
+
+            if (ac_state.mode == climate::CLIMATE_MODE_OFF ||
+                ac_state.mode == climate::CLIMATE_MODE_HEAT ||
+                ac_state.mode == climate::CLIMATE_MODE_FAN_ONLY)
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            }
+
+            if (ac_state.preset == climate::CLIMATE_PRESET_BOOST && previous_fan_mode != ac_state.fan_mode)
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            }
+        }
+
+        void PanaACClimate::sync_preset_select_()
+        {
+            if (this->preset_ != nullptr)
+            {
+                this->preset_->set_preset(ac_state.preset);
+            }
         }
 
         climate::ClimateTraits PanaACClimate::traits() {
@@ -130,6 +180,19 @@ namespace esphome
             {
                 traits.add_supported_swing_mode(climate::CLIMATE_SWING_HORIZONTAL);
                 traits.add_supported_swing_mode(climate::CLIMATE_SWING_BOTH);
+            }
+
+            if (this->supports_powerful_ || this->supports_eco_)
+            {
+                traits.add_supported_preset(climate::CLIMATE_PRESET_NONE);
+            }
+            if (this->supports_powerful_)
+            {
+                traits.add_supported_preset(climate::CLIMATE_PRESET_BOOST);
+            }
+            if (this->supports_eco_)
+            {
+                traits.add_supported_preset(climate::CLIMATE_PRESET_ECO);
             }
             
             return traits;
@@ -309,6 +372,16 @@ namespace esphome
                     ac_state.fan_level = PANAAC_FAN_QUIET;
                 }
             }
+
+            ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            if (this->supports_powerful_ && (state_bytes[PANAAC_BYTEPOS_POWERFUL] & PANAAC_POWERFUL_MASK))
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_BOOST;
+            }
+            else if (this->supports_eco_ && (state_bytes[PANAAC_BYTEPOS_ECO] & PANAAC_ECO_MASK))
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_ECO;
+            }
             
             //swing
             uint8_t swing_v = state_bytes[PANAAC_BYTEPOS_SWINGV] & 0x0F;
@@ -409,8 +482,11 @@ namespace esphome
             this->mode = ac_state.mode;
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
+            this->last_fan_mode_ = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
+            this->preset = ac_state.preset;
             this->publish_state();
+            this->sync_preset_select_();
 
             this->fanlevel_->set_fanlevel(ac_state.fan_level);
             this->swingv_->set_swingvpos(ac_state.swing_v_pos);
@@ -507,6 +583,15 @@ namespace esphome
                     if (ac_state.fan_level != PANAAC_FAN_AUTO)
                         ac_state.fan_level = PANAAC_FAN_AUTO;
                     second_frame[PANAAC_BYTEPOS_FAN] |= ac_state.fan_level;
+            }
+
+            if (this->supports_powerful_ && ac_state.preset == climate::CLIMATE_PRESET_BOOST)
+            {
+                second_frame[PANAAC_BYTEPOS_POWERFUL] |= PANAAC_POWERFUL_MASK;
+            }
+            else if (this->supports_eco_ && ac_state.preset == climate::CLIMATE_PRESET_ECO)
+            {
+                second_frame[PANAAC_BYTEPOS_ECO] |= PANAAC_ECO_MASK;
             }
 
             // swing
@@ -611,6 +696,8 @@ namespace esphome
         }
         
         void PanaACClimate::transmit_state() {
+            climate::ClimateFanMode previous_fan_mode = this->last_fan_mode_;
+
             // power & mode
             ac_state.mode = this->mode;
 
@@ -645,6 +732,9 @@ namespace esphome
                 default:
                     ac_state.fan_level = PANAAC_FAN_AUTO;
             }
+
+            ac_state.preset = this->preset.has_value() ? this->preset.value() : climate::CLIMATE_PRESET_NONE;
+            this->normalize_preset_(previous_fan_mode);
 
             // swing
             ac_state.swing_mode = this->swing_mode;
@@ -707,8 +797,11 @@ namespace esphome
             this->mode = ac_state.mode;
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
+            this->last_fan_mode_ = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
+            this->preset = ac_state.preset;
             this->publish_state();
+            this->sync_preset_select_();
 
             this->fanlevel_->set_fanlevel(ac_state.fan_level);
             this->swingv_->set_swingvpos(ac_state.swing_v_pos);
@@ -720,11 +813,16 @@ namespace esphome
 
         void PanaACClimate::update_state()
         {
+            climate::ClimateFanMode previous_fan_mode = this->fan_mode.has_value() ? this->fan_mode.value() : climate::CLIMATE_FAN_AUTO;
+
             // this->fan_mode = ac_state.fan_mode;
             this->mode = ac_state.mode;
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
+            this->normalize_preset_(previous_fan_mode);
+            this->preset = ac_state.preset;
+            this->last_fan_mode_ = ac_state.fan_mode;
             transmit_data();
 
             // update state of additional selects
@@ -736,6 +834,7 @@ namespace esphome
             }
 
             this->publish_state();
+            this->sync_preset_select_();
 
         }
 
