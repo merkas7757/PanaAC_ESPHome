@@ -15,7 +15,7 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import climate_ir, select
-from esphome.const import CONF_ID, CONF_NAME, CONF_DISABLED_BY_DEFAULT
+from esphome.const import CONF_ID, CONF_NAME, CONF_DISABLED_BY_DEFAULT, CONF_DEVICE_ID
 
 AUTO_LOAD = ['climate_ir','select']
 
@@ -60,20 +60,30 @@ async def to_code(config):
     cg.add(var.set_fan_5level(config[CONF_FAN_5LEVEL]))
     cg.add(var.set_ir_control(config[CONF_IR_CONTROL]))
 
+    # Inherit sub-device grouping from the climate entity so the companion
+    # selects are registered under the same ESPHome sub-device (and therefore
+    # the same Home Assistant device) instead of falling back to the parent
+    # node. See issue #15.
+    device_id = config.get(CONF_DEVICE_ID)
+
     # Fan level select
     fanlevel_default_config = { CONF_ID: config[CONF_FANLEVEL_ID],
                                 CONF_NAME: "- Fan Level",
                                 CONF_DISABLED_BY_DEFAULT: False}
+    if device_id is not None:
+        fanlevel_default_config[CONF_DEVICE_ID] = device_id
     fanlevel = cg.new_Pvariable(config[CONF_FANLEVEL_ID])
     await select.register_select(fanlevel, fanlevel_default_config, options=[])
     await cg.register_component(fanlevel, fanlevel_default_config)
     cg.add(fanlevel.set_parent_climate(var))
     cg.add(var.set_fanlevel(fanlevel))
-    
+
     # SwingV select
     swingv_default_config = {   CONF_ID: config[CONF_SWINGV_ID],
                                 CONF_NAME: "- Swing Vertical",
                                 CONF_DISABLED_BY_DEFAULT: False}
+    if device_id is not None:
+        swingv_default_config[CONF_DEVICE_ID] = device_id
     swingv = cg.new_Pvariable(config[CONF_SWINGV_ID])
     await select.register_select(swingv, swingv_default_config, options=[])
     await cg.register_component(swingv, swingv_default_config)
@@ -85,6 +95,8 @@ async def to_code(config):
         swingh_default_config = {   CONF_ID: config[CONF_SWINGH_ID],
                                     CONF_NAME: "- Swing Horizontal",
                                     CONF_DISABLED_BY_DEFAULT: False}
+        if device_id is not None:
+            swingh_default_config[CONF_DEVICE_ID] = device_id
         swingh = cg.new_Pvariable(config[CONF_SWINGH_ID])
         await select.register_select(swingh, swingh_default_config, options=[])
         await cg.register_component(swingh, swingh_default_config)

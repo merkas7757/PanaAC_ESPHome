@@ -1,0 +1,5 @@
+# Working notes for AI-assisted issue triage
+.github-notes/
+
+# Python compile artifacts
+esphome/components/**/__pycache__/
