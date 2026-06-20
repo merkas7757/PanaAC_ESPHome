@@ -35,6 +35,7 @@ namespace esphome
             ac_state.swing_h_pos = PANAAC_SWINGH_AUTO;
             ac_state.last_swing_v_pos = PANAAC_SWINGV_MIDDLE;
             ac_state.last_swing_h_pos = PANAAC_SWINGH_MIDDLE;
+            ac_state.preset = climate::CLIMATE_PRESET_NONE;
 
             // fan level options
             FixedVector<const char *> fanlevel_options;
@@ -72,10 +73,25 @@ namespace esphome
                 this->swingh_->traits.set_options({STR_SWINGH_AUTO, STR_SWINGH_LEFTMAX, STR_SWINGH_LEFT, STR_SWINGH_MIDDLE, STR_SWINGH_RIGHT, STR_SWINGH_RIGHTMAX});
             }
 
+            // preset select options — only registered when at least one of
+            // POWERFUL/ECO is enabled (see climate.py).
+            if (this->preset_select_ != nullptr)
+            {
+                FixedVector<const char *> preset_options;
+                preset_options.init(3);
+                preset_options.push_back(STR_PRESET_NONE);
+                if (this->supports_powerful_)
+                    preset_options.push_back(STR_PRESET_POWERFUL);
+                if (this->supports_eco_)
+                    preset_options.push_back(STR_PRESET_ECO);
+                this->preset_select_->traits.set_options(preset_options);
+            }
+
             // initial state
             this->mode = climate::CLIMATE_MODE_OFF;
             this->target_temperature = 26.0;
             this->fan_mode = climate::CLIMATE_FAN_AUTO;
+            this->preset = climate::CLIMATE_PRESET_NONE;
             if (this->swing_horizontal_)
             {
                 this->swing_mode = climate::CLIMATE_SWING_BOTH;
@@ -112,7 +128,7 @@ namespace esphome
                 traits.add_supported_mode(climate::CLIMATE_MODE_HEAT);
             if (this->supports_fan_only_)
                 traits.add_supported_mode(climate::CLIMATE_MODE_FAN_ONLY);
-            
+
             // Default to only 3 levels in ESPHome
             traits.set_supported_fan_modes(
                 {   climate::CLIMATE_FAN_AUTO,
@@ -123,6 +139,18 @@ namespace esphome
 
             if (this->supports_quiet_)
                 traits.add_supported_fan_mode(climate::CLIMATE_FAN_QUIET);
+
+            // Presets (POWERFUL/ECO). NONE is always listed when at least
+            // one is enabled so HA can clear the preset without removing
+            // the field.
+            if (this->supports_powerful_ || this->supports_eco_)
+            {
+                traits.add_supported_preset(climate::CLIMATE_PRESET_NONE);
+                if (this->supports_powerful_)
+                    traits.add_supported_preset(climate::CLIMATE_PRESET_BOOST);
+                if (this->supports_eco_)
+                    traits.add_supported_preset(climate::CLIMATE_PRESET_ECO);
+            }
 
             traits.set_supported_swing_modes({climate::CLIMATE_SWING_OFF, climate::CLIMATE_SWING_VERTICAL});
             
@@ -316,7 +344,7 @@ namespace esphome
             
             ac_state.swing_v_pos = static_cast<SwingVPos>(swing_v);
             ac_state.swing_h_pos = static_cast<SwingHPos>(swing_h);
-            
+
             if (!this->swing_horizontal_) swing_h = PANAAC_SWINGH_NONE;
 
             if (swing_v == PANAAC_SWINGV_AUTO && swing_h == PANAAC_SWINGH_AUTO)
@@ -334,6 +362,20 @@ namespace esphome
             else
             {
                 ac_state.swing_mode = climate::CLIMATE_SWING_OFF;
+            }
+
+            // Preset (POWERFUL/ECO). POWERFUL takes priority over ECO if
+            // the AC ever sends both (paranoia — Panasonic never does).
+            ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            if (this->supports_powerful_ &&
+                (state_bytes[PANAAC_BYTEPOS_POWERFUL] & PANAAC_POWERFUL_MASK))
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_BOOST;
+            }
+            else if (this->supports_eco_ &&
+                     (state_bytes[PANAAC_BYTEPOS_ECO] & PANAAC_ECO_MASK))
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_ECO;
             }
 
             return true;
@@ -410,6 +452,7 @@ namespace esphome
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
+            this->preset = ac_state.preset;
             this->publish_state();
 
             this->fanlevel_->set_fanlevel(ac_state.fan_level);
@@ -418,7 +461,11 @@ namespace esphome
             {
                 this->swingh_->set_swinghpos(ac_state.swing_h_pos);
             }
-            
+            if (this->preset_select_ != nullptr)
+            {
+                this->preset_select_->set_preset(ac_state.preset);
+            }
+
             return true;
         }
 
@@ -550,6 +597,20 @@ namespace esphome
                     }
             }
 
+            // Preset (POWERFUL/ECO). Set on a separate byte from the
+            // existing QUIET bit (byte 13 high nibble), so the two do not
+            // collide with the preset bits at all.
+            if (this->supports_powerful_ &&
+                ac_state.preset == climate::CLIMATE_PRESET_BOOST)
+            {
+                second_frame[PANAAC_BYTEPOS_POWERFUL] |= PANAAC_POWERFUL_MASK;
+            }
+            if (this->supports_eco_ &&
+                ac_state.preset == climate::CLIMATE_PRESET_ECO)
+            {
+                second_frame[PANAAC_BYTEPOS_ECO] |= PANAAC_ECO_MASK;
+            }
+
             // checksum
             for (uint8_t i = 0; i < 18; i++) {
                 second_frame[18] += second_frame[i];
@@ -616,6 +677,48 @@ namespace esphome
 
             // temperature
             ac_state.temp = this->target_temperature;
+
+            // preset — read from this->preset (set by ClimateCall::set_preset
+            // when the user changes it from HA), and apply Panasonic's
+            // protocol quirks:
+            //   * POWERFUL is incompatible with HEAT/FAN_ONLY/OFF on most
+            //     models, so drop the preset if those modes are active.
+            //   * The Panasonic remote forces preset to NONE when the AC
+            //     is OFF, so mirror that here.
+            if (this->preset.has_value())
+            {
+                ac_state.preset = *this->preset;
+            }
+            else
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            }
+            if (ac_state.mode == climate::CLIMATE_MODE_OFF ||
+                ac_state.mode == climate::CLIMATE_MODE_HEAT ||
+                ac_state.mode == climate::CLIMATE_MODE_FAN_ONLY)
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            }
+            if (!this->supports_powerful_ &&
+                ac_state.preset == climate::CLIMATE_PRESET_BOOST)
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            }
+            if (!this->supports_eco_ &&
+                ac_state.preset == climate::CLIMATE_PRESET_ECO)
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            }
+            // POWERFUL is incompatible with the user changing the fan
+            // level on most models — the remote clears POWERFUL the
+            // moment you press a fan button. Mirror that so a fan change
+            // does not silently keep POWERFUL on.
+            if (ac_state.preset == climate::CLIMATE_PRESET_BOOST &&
+                ac_state.fan_mode != this->last_fan_mode_)
+            {
+                ac_state.preset = climate::CLIMATE_PRESET_NONE;
+            }
+            this->last_fan_mode_ = ac_state.fan_mode;
 
             // fan
             ac_state.fan_mode = this->fan_mode.value();
@@ -708,6 +811,7 @@ namespace esphome
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
+            this->preset = ac_state.preset;
             this->publish_state();
 
             this->fanlevel_->set_fanlevel(ac_state.fan_level);
@@ -715,6 +819,10 @@ namespace esphome
             if (this->swing_horizontal_)
             {
                 this->swingh_->set_swinghpos(ac_state.swing_h_pos);
+            }
+            if (this->preset_select_ != nullptr)
+            {
+                this->preset_select_->set_preset(ac_state.preset);
             }
         }
 
@@ -725,6 +833,7 @@ namespace esphome
             this->target_temperature = ac_state.temp;
             this->fan_mode = ac_state.fan_mode;
             this->swing_mode = ac_state.swing_mode;
+            this->preset = ac_state.preset;
             transmit_data();
 
             // update state of additional selects
@@ -733,6 +842,10 @@ namespace esphome
             if (this->swing_horizontal_)
             {
                 this->swingh_->set_swinghpos(ac_state.swing_h_pos);
+            }
+            if (this->preset_select_ != nullptr)
+            {
+                this->preset_select_->set_preset(ac_state.preset);
             }
 
             this->publish_state();

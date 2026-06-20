@@ -52,11 +52,23 @@ namespace esphome
         const uint8_t PANAAC_BYTEPOS_SWINGV = 8;
         const uint8_t PANAAC_BYTEPOS_SWINGH = 9;
         const uint8_t PANAAC_BYTEPOS_QUIET = 13;
-        
+        // POWERFUL lives in the same byte as QUIET but on a different bit
+        // (low bit vs. high nibble), so the two do not collide.
+        const uint8_t PANAAC_BYTEPOS_POWERFUL = 13;
+        // ECO is encoded in byte 17, which is otherwise unused in the
+        // 19-byte state frame.
+        const uint8_t PANAAC_BYTEPOS_ECO = 17;
+
         // byte values
         const uint8_t PANAAC_POWER_MASK = 0x01;  // only bit 0 encodes power state
         const uint8_t PANAAC_POWER_OFF = 0x00;   // bit 0 = 0 → OFF
         const uint8_t PANAAC_POWER_ON  = 0x01;   // bit 0 = 1 → ON
+
+        // POWERFUL (bit 0 of byte 13) and QUIET (high nibble of byte 13)
+        // share the same byte but use different bits and never collide.
+        const uint8_t PANAAC_POWERFUL_MASK = 0x01;
+        // ECO (bit 4 of byte 17).
+        const uint8_t PANAAC_ECO_MASK = 0x10;
 
         const uint8_t PANAAC_MODE_DRY = 0x20;
         const uint8_t PANAAC_MODE_COOL = 0x30;
@@ -103,6 +115,7 @@ namespace esphome
             SwingHPos swing_h_pos;
             SwingVPos last_swing_v_pos;
             SwingHPos last_swing_h_pos;
+            climate::ClimatePreset preset{climate::CLIMATE_PRESET_NONE};
         };
 
         static const char *STR_FAN_AUTO = "Auto";
@@ -126,6 +139,11 @@ namespace esphome
         static const char *STR_SWINGH_MIDDLE = "Middle";
         static const char *STR_SWINGH_RIGHT = "Right";
         static const char *STR_SWINGH_RIGHTMAX = "Right Max";
+
+        // Preset display strings (POWERFUL maps to ESPHome's BOOST preset).
+        static const char *STR_PRESET_NONE = "None";
+        static const char *STR_PRESET_POWERFUL = "Powerful";
+        static const char *STR_PRESET_ECO = "Eco";
 
         class PanaACClimate;
 
