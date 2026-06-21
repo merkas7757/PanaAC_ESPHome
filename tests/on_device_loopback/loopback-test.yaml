@@ -1,0 +1,133 @@
+# B1 — single-board loopback round-trip test (invasive wiring).
+# The ESP transmits on GPIO4 and its own receiver reads GPIO4 (same pin, allow_other_uses),
+# so every transmitted frame is self-received and decoded. ir_control: false = no 38kHz
+# carrier (baseband), which is what makes electrical self-loopback exact.
+#
+# Press the "Start Loopback Test" button in HA (or trigger it via the API); the script cycles
+# a few climate states, each of which transmits and is immediately re-decoded by on_receive.
+# Watch the logs: each step should show a matching "Command decoded" line and the climate
+# state should stay stable (no drift between commanded and received). See TEST_ENVIRONMENT.md.
+esphome:
+  name: "panaac-loopback"
+  friendly_name: "PanaAC Loopback Test"
+  min_version: 2025.9.0
+  name_add_mac_suffix: false
+
+external_components:
+  - source: ../../esphome/components
+
+esp8266:
+  board: esp01_1m
+
+logger:
+  level: VERBOSE
+
+api:
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap: {}
+
+# Invasive shared pin: receiver + transmitter on the SAME GPIO4.
+remote_receiver:
+  pin:
+    number: GPIO4
+    inverted: true
+    mode:
+      output: true
+      open_drain: true
+    allow_other_uses: true   # needed: same pin used by transmitter
+  tolerance: 55%
+  id: ir_receiver
+  idle: 5ms
+
+remote_transmitter:
+  carrier_duty_percent: 50%
+  pin:
+    number: GPIO4
+    inverted: true
+    mode:
+      output: true
+      open_drain: true
+    allow_other_uses: true
+
+climate:
+  - platform: panaac
+    id: ac
+    name: "PanaAC Loopback"
+    receiver_id: ir_receiver
+    supports_heat: true
+    supports_fan_only: true
+    supports_quiet: true
+    fan_5level: true
+    swing_horizontal: true
+    temp_step: 0.5
+    ir_control: false        # baseband — required for electrical self-loopback
+    fanlevel_id: fanlevel
+    swingv_id: swingv
+    swingh_id: swingh
+
+button:
+  - platform: template
+    name: "Start Loopback Test"
+    id: start_loopback
+    on_press:
+      then:
+        - script.execute: loopback_cycle
+
+script:
+  - id: loopback_cycle
+    mode: single
+    then:
+      - logger.log: "LOOPBACK STEP 1: COOL 24C fan LOW swing VERTICAL"
+      - climate.control:
+          id: ac
+          mode: "COOL"
+          target_temperature: 24.0
+          fan_mode: "LOW"
+          swing_mode: "VERTICAL"
+      - delay: 1s
+      - logger.log:
+          format: "  after step 1: mode=%d temp=%.1f fan_mode=%d swing=%d"
+          args:
+            - 'int(id(ac).mode)'
+            - 'id(ac).target_temperature'
+            - 'int(id(ac).fan_mode.value_or(esphome::climate::CLIMATE_FAN_AUTO))'
+            - 'int(id(ac).swing_mode)'
+
+      - logger.log: "LOOPBACK STEP 2: HEAT 26.5C fan MEDIUM swing OFF"
+      - climate.control:
+          id: ac
+          mode: "HEAT"
+          target_temperature: 26.5
+          fan_mode: "MEDIUM"
+          swing_mode: "OFF"
+      - delay: 1s
+      - logger.log:
+          format: "  after step 2: mode=%d temp=%.1f fan_mode=%d swing=%d"
+          args:
+            - 'int(id(ac).mode)'
+            - 'id(ac).target_temperature'
+            - 'int(id(ac).fan_mode.value_or(esphome::climate::CLIMATE_FAN_AUTO))'
+            - 'int(id(ac).swing_mode)'
+
+      - logger.log: "LOOPBACK STEP 3: DRY 22C fan AUTO swing BOTH"
+      - climate.control:
+          id: ac
+          mode: "DRY"
+          target_temperature: 22.0
+          fan_mode: "AUTO"
+          swing_mode: "BOTH"
+      - delay: 1s
+      - logger.log:
+          format: "  after step 3: mode=%d temp=%.1f fan_mode=%d swing=%d"
+          args:
+            - 'int(id(ac).mode)'
+            - 'id(ac).target_temperature'
+            - 'int(id(ac).fan_mode.value_or(esphome::climate::CLIMATE_FAN_AUTO))'
+            - 'int(id(ac).swing_mode)'
+
+      - logger.log: "LOOPBACK DONE"
