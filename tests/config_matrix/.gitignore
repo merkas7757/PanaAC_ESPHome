@@ -1,0 +1,5 @@
+# Generated config matrix (produced by generate.py)
+configs/
+.last_err
+__pycache__/
+*.pyc
