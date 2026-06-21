@@ -63,6 +63,8 @@ namespace esphome
             void transmit_state() override;
             bool on_receive(remote_base::RemoteReceiveData data) override;
             climate::ClimateTraits traits() override;
+            void sync_state_from_climate_();
+            void publish_auxiliary_states_();
 
             bool decode_data(remote_base::RemoteReceiveData data, std::vector<uint8_t>& state_bytes);
             bool decode_state(std::vector<uint8_t> state_bytes, ClimateState& state);

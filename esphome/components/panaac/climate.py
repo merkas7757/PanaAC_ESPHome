@@ -35,6 +35,7 @@ CONF_IR_CONTROL = "ir_control"
 CONF_SWINGV_ID = "swingv_id"
 CONF_SWINGH_ID = "swingh_id"
 CONF_FANLEVEL_ID = "fanlevel_id"
+VALID_TEMP_STEP = cv.one_of(0.5, 1.0, float=True)
 
 CONFIG_SCHEMA = climate_ir.climate_ir_with_receiver_schema(PanaACClimate).extend({
     cv.GenerateID(): cv.declare_id(PanaACClimate),
@@ -42,7 +43,7 @@ CONFIG_SCHEMA = climate_ir.climate_ir_with_receiver_schema(PanaACClimate).extend
     cv.GenerateID(CONF_SWINGH_ID): cv.declare_id(PanaACSwingH),
     cv.GenerateID(CONF_FANLEVEL_ID): cv.declare_id(PanaACFanLevel),
     cv.Optional(CONF_SWING_HORIZONTAL, default=False): cv.boolean,
-    cv.Optional(CONF_TEMP_STEP, default=1.0): cv.float_,
+    cv.Optional(CONF_TEMP_STEP, default=1.0): VALID_TEMP_STEP,
     cv.Optional(CONF_SUPPORT_QUIET, default=False): cv.boolean,
     cv.Optional(CONF_SUPPORT_FAN_ONLY, default=False): cv.boolean,
     cv.Optional(CONF_FAN_5LEVEL, default=False): cv.boolean,
