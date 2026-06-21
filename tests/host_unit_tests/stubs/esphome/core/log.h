@@ -19,6 +19,8 @@ struct LogString;  // incomplete; only used as `const LogString *` in climate_mo
 #define LOG_CLIMATE(prefix, name, obj) do {} while (0)
 #define LOG_SELECT(prefix, name, obj) do {} while (0)
 
+#define YESNO(x) ((x) ? "YES" : "NO")
+
 #define ESPHOME_LOG_LEVEL_NONE 0
 #define ESPHOME_LOG_LEVEL_ERROR 1
 #define ESPHOME_LOG_LEVEL_WARN 2

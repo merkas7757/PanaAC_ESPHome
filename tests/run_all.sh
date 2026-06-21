@@ -24,7 +24,8 @@ if command -v clang-tidy >/dev/null 2>&1 && [ -f "$HERE/../esphome/.esphome/buil
   echo "==================== A3-clang-tidy ===================="
   python3 "$HERE/clang_tidy/run_clang_tidy.py" >/tmp/panaac_a3.log 2>&1
   if [ -f "$HERE/clang_tidy/clang_tidy_report.txt" ]; then
-    n=$(grep -c "warning:\|error:" "$HERE/clang_tidy/clang_tidy_report.txt" 2>/dev/null || echo 0)
+    n=$(grep -c "warning:\|error:" "$HERE/clang_tidy/clang_tidy_report.txt" 2>/dev/null)
+    [ -z "$n" ] && n=0
     echo "RESULT: A3-clang-tidy PASS (analysis ran; $n findings — see tests/clang_tidy/FINDINGS.md)"
     pass=$((pass+1))
   else

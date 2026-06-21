@@ -1,5 +1,12 @@
 # clang-tidy findings — panaac component
 
+> **Status on `bugfix/all-review-findings`: RESOLVED — 0 findings.** The list below documents
+> the original findings (60, deduplicated) that this branch fixed; re-running
+> `python3 tests/clang_tidy/run_clang_tidy.py` now reports a clean component. The fixes mirror
+> the corresponding review items (const globals, namespace concat, protected-method `_` suffix,
+> static-constant UPPER_CASE, range-based loops, DeMorgan, branch-clone restructure,
+> unchecked-optional guard, vector→array). See the branch commit message for the mapping.
+
 Run with the ESPHome platform `.clang-tidy` config (clang-tidy 22.1.7), flags taken from
 a real `ac-test` PlatformIO build (`idedata`), header analysis scoped to the panaac
 component so toolchain/esphome-core noise is suppressed. `WarningsAsErrors: '*'` is set by

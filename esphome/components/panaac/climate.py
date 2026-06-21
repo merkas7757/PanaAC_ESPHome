@@ -17,7 +17,7 @@ import esphome.config_validation as cv
 from esphome.components import climate_ir, select
 from esphome.const import CONF_ID, CONF_NAME, CONF_DISABLED_BY_DEFAULT
 
-AUTO_LOAD = ['climate_ir','select']
+AUTO_LOAD = ["climate_ir", "select"]
 
 panaac_ns = cg.esphome_ns.namespace('panaac')
 PanaACClimate = panaac_ns.class_('PanaACClimate', climate_ir.ClimateIR)
@@ -37,12 +37,11 @@ CONF_SWINGH_ID = "swingh_id"
 CONF_FANLEVEL_ID = "fanlevel_id"
 
 CONFIG_SCHEMA = climate_ir.climate_ir_with_receiver_schema(PanaACClimate).extend({
-    cv.GenerateID(): cv.declare_id(PanaACClimate),
     cv.GenerateID(CONF_SWINGV_ID): cv.declare_id(PanaACSwingV),
     cv.GenerateID(CONF_SWINGH_ID): cv.declare_id(PanaACSwingH),
     cv.GenerateID(CONF_FANLEVEL_ID): cv.declare_id(PanaACFanLevel),
     cv.Optional(CONF_SWING_HORIZONTAL, default=False): cv.boolean,
-    cv.Optional(CONF_TEMP_STEP, default=1.0): cv.float_,
+    cv.Optional(CONF_TEMP_STEP, default=1.0): cv.float_range(min=0.5, max=1.0),
     cv.Optional(CONF_SUPPORT_QUIET, default=False): cv.boolean,
     cv.Optional(CONF_SUPPORT_FAN_ONLY, default=False): cv.boolean,
     cv.Optional(CONF_FAN_5LEVEL, default=False): cv.boolean,
@@ -51,8 +50,6 @@ CONFIG_SCHEMA = climate_ir.climate_ir_with_receiver_schema(PanaACClimate).extend
 
 async def to_code(config):
     var = await climate_ir.new_climate_ir(config)
-    # var = cg.new_Pvariable(config[CONF_ID])
-    # await climate_ir.register_climate_ir(var, config)
     cg.add(var.set_swing_horizontal(config[CONF_SWING_HORIZONTAL]))
     cg.add(var.set_temp_step(config[CONF_TEMP_STEP]))
     cg.add(var.set_supports_fan_only(config[CONF_SUPPORT_FAN_ONLY]))

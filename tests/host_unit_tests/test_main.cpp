@@ -21,8 +21,7 @@ using esphome::climate::ClimateSwingMode;
 struct TestClimate : public PanaACClimate {
   using PanaACClimate::transmit_state;
   using PanaACClimate::on_receive;
-  using PanaACClimate::decode_data;
-  using PanaACClimate::decode_state;
+  using PanaACClimate::decode_state_;
 };
 
 struct Harness {
@@ -184,13 +183,12 @@ static void test_select_keeps_level2() {
 }
 
 // ---------------------------------------------------------------------------
-// TEST 5 — characterization of the L2-loss bug via transmit_state (climate path)
-//   transmit_state() collapses CLIMATE_FAN_LOW -> PANAAC_FAN_LEVEL_1, dropping a
-//   previously-selected L2. This ASSERTS THE CURRENT (buggy) behavior so the suite
-//   stays green; flip the expectation to LEVEL_2 once the bug is fixed.
+// TEST 5 — transmit_state preserves a previously-selected L2 (climate path).
+//   Before the fix, transmit_state() collapsed CLIMATE_FAN_LOW -> L1, dropping L2.
+//   Now it keeps an existing LOW-group level (L1/L2). Asserts the FIXED behavior.
 // ---------------------------------------------------------------------------
-static void test_transmit_state_loses_level2() {
-  g_current_case = "transmit_state_loses_level2";
+static void test_transmit_state_keeps_level2() {
+  g_current_case = "transmit_state_keeps_level2";
   Harness h(false, true, false, false);
   // simulate: user picked L2 via select, then drives the climate entity (temp change)
   h.c.ac_state.fan_level = PANAAC_FAN_LEVEL_2;
@@ -200,8 +198,8 @@ static void test_transmit_state_loses_level2() {
   h.c.target_temperature = 24.0f;
   h.c.swing_mode = ClimateSwingMode::CLIMATE_SWING_VERTICAL;
   h.c.transmit_state();
-  // BUG: transmit_state maps LOW -> L1, discarding the L2 the user selected.
-  CHECK_EQ(h.c.ac_state.fan_level, PANAAC_FAN_LEVEL_1);
+  // FIXED: transmit_state keeps the LOW-group level, so L2 survives a climate-driven update.
+  CHECK_EQ(h.c.ac_state.fan_level, PANAAC_FAN_LEVEL_2);
 }
 
 // ---------------------------------------------------------------------------
@@ -213,11 +211,11 @@ static void test_decode_rejects_bad_frames() {
   ClimateState out{};
   // wrong length (18 bytes)
   std::vector<uint8_t> short18(18, 0x00);
-  CHECK_FALSE(h.c.decode_state(short18, out));
+  CHECK_FALSE(h.c.decode_state_(short18, out));
   // right length, wrong protocol header
   std::vector<uint8_t> badhdr(19, 0x00);
   badhdr[0] = 0xFF;
-  CHECK_FALSE(h.c.decode_state(badhdr, out));
+  CHECK_FALSE(h.c.decode_state_(badhdr, out));
   // right header, wrong checksum
   std::vector<uint8_t> badck(19, 0x00);
   badck[0] = 0x02; badck[1] = 0x20; badck[2] = 0xE0; badck[3] = 0x04; badck[4] = 0x00;
@@ -225,10 +223,10 @@ static void test_decode_rejects_bad_frames() {
   // checksum (sum 0..17) intentionally not placed in [18]
   uint8_t sum = 0; for (int i = 0; i < 18; i++) sum += badck[i];
   badck[18] = uint8_t(sum + 1);  // off-by-one -> invalid
-  CHECK_FALSE(h.c.decode_state(badck, out));
+  CHECK_FALSE(h.c.decode_state_(badck, out));
   // valid checksum -> accepted
   badck[18] = sum;
-  CHECK_TRUE(h.c.decode_state(badck, out));
+  CHECK_TRUE(h.c.decode_state_(badck, out));
 }
 
 // ---------------------------------------------------------------------------
@@ -239,7 +237,7 @@ int main() {
   test_encode_spec_bytes();
   test_round_trip();
   test_select_keeps_level2();
-  test_transmit_state_loses_level2();
+  test_transmit_state_keeps_level2();
   test_decode_rejects_bad_frames();
   return report_results();
 }

@@ -14,70 +14,66 @@
  * limitations under the License.
  */
 
- #pragma once
+#pragma once
 
 #include "definitions.h"
 #include "extra.h"
+#include <array>
 #include <cinttypes>
+#include <cstddef>
+#include <span>
 
-namespace esphome
-{
-    namespace panaac
-    {
-        class PanaACClimate : public climate_ir::ClimateIR
-        {
-        public:
-            PanaACClimate() : climate_ir::ClimateIR(
-                                  PANAAC_TEMP_MIN, PANAAC_TEMP_MAX, 1.0f, true, true,
-                                  {climate::CLIMATE_FAN_AUTO,
-                                   climate::CLIMATE_FAN_LOW,
-                                   climate::CLIMATE_FAN_MEDIUM,
-                                   climate::CLIMATE_FAN_HIGH,
-                                   climate::CLIMATE_FAN_QUIET},
-                                  {climate::CLIMATE_SWING_OFF,
-                                   climate::CLIMATE_SWING_BOTH,
-                                   climate::CLIMATE_SWING_VERTICAL,
-                                   climate::CLIMATE_SWING_HORIZONTAL},
-                                  {})
-                                  {}
+namespace esphome::panaac {
 
-            void set_swing_horizontal(bool swing_horizontal) { this->swing_horizontal_ = swing_horizontal; }
-            void set_temp_step(float temp_step) { this->temp_step_ = temp_step; }
-            void set_supports_quiet(bool supports_quiet) { this->supports_quiet_ = supports_quiet; }
-            void set_supports_fan_only(bool supports_fan_only) { this->supports_fan_only_ = supports_fan_only; }
-            void set_fan_5level(bool fan_5level) { this->fan_5level_ = fan_5level; }
-            void set_ir_control(bool ir_control) { this->ir_control_ = ir_control; }
+class PanaACClimate : public climate_ir::ClimateIR {
+ public:
+  PanaACClimate()
+      : climate_ir::ClimateIR(PANAAC_TEMP_MIN, PANAAC_TEMP_MAX, 1.0f, true, true,
+                              {climate::CLIMATE_FAN_AUTO, climate::CLIMATE_FAN_LOW, climate::CLIMATE_FAN_MEDIUM,
+                               climate::CLIMATE_FAN_HIGH, climate::CLIMATE_FAN_QUIET},
+                              {climate::CLIMATE_SWING_OFF, climate::CLIMATE_SWING_BOTH, climate::CLIMATE_SWING_VERTICAL,
+                               climate::CLIMATE_SWING_HORIZONTAL},
+                              {}) {}
 
-            void set_fanlevel(PanaACFanLevel *fanlevel) { this->fanlevel_ = fanlevel; }
-            void set_swingv(PanaACSwingV *swingv) { this->swingv_ = swingv; }
-            void set_swingh(PanaACSwingH *swingh) { this->swingh_ = swingh; }
+  void set_swing_horizontal(bool swing_horizontal) { this->swing_horizontal_ = swing_horizontal; }
+  void set_temp_step(float temp_step) { this->temp_step_ = temp_step; }
+  void set_supports_quiet(bool supports_quiet) { this->supports_quiet_ = supports_quiet; }
+  void set_supports_fan_only(bool supports_fan_only) { this->supports_fan_only_ = supports_fan_only; }
+  void set_fan_5level(bool fan_5level) { this->fan_5level_ = fan_5level; }
+  void set_ir_control(bool ir_control) { this->ir_control_ = ir_control; }
 
-            void update_state();
-            void transmit_data();
+  void set_fanlevel(PanaACFanLevel *fanlevel) { this->fanlevel_ = fanlevel; }
+  void set_swingv(PanaACSwingV *swingv) { this->swingv_ = swingv; }
+  void set_swingh(PanaACSwingH *swingh) { this->swingh_ = swingh; }
 
-            ClimateState ac_state;
-            bool swing_horizontal_;
+  bool get_swing_horizontal() const { return this->swing_horizontal_; }
 
-        protected:
-            void setup() override;
-            void transmit_state() override;
-            bool on_receive(remote_base::RemoteReceiveData data) override;
-            climate::ClimateTraits traits() override;
+  void update_state();
+  void transmit_data();
+  void dump_config() override;
 
-            bool decode_data(remote_base::RemoteReceiveData data, std::vector<uint8_t>& state_bytes);
-            bool decode_state(std::vector<uint8_t> state_bytes, ClimateState& state);
-            
-            float temp_step_;
-            bool supports_quiet_;
-            bool fan_5level_;
-            bool ir_control_;
-            bool supports_fan_only_;
+  // Public by design: the companion select entities (extra.cpp) read/write ac_state directly.
+  ClimateState ac_state;
 
-            PanaACFanLevel *fanlevel_{nullptr};
-            PanaACSwingV *swingv_{nullptr};
-            PanaACSwingH *swingh_{nullptr};
-        };
+ protected:
+  void setup() override;
+  void transmit_state() override;
+  bool on_receive(remote_base::RemoteReceiveData data) override;
+  climate::ClimateTraits traits() override;
 
+  bool decode_data_(remote_base::RemoteReceiveData data, std::array<uint8_t, 27> &state_bytes, size_t &state_len);
+  bool decode_state_(std::span<const uint8_t> state_bytes, ClimateState &ac_state);
 
-    } // namespace panaac
-} // namespace esphome
+  float temp_step_;
+  bool supports_quiet_;
+  bool fan_5level_;
+  bool ir_control_;
+  bool supports_fan_only_;
+  bool swing_horizontal_;
+
+  PanaACFanLevel *fanlevel_{nullptr};
+  PanaACSwingV *swingv_{nullptr};
+  PanaACSwingH *swingh_{nullptr};
+};
+
+}  // namespace esphome::panaac
